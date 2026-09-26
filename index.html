@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#E8F1DF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="打刻">
+  <meta name="description" content="出退勤とCS・HDS・RESTをシンプルに記録する個人用打刻アプリ">
+  <title>打刻</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <style>
+    :root {
+      --sky: #83CDD5;
+      --shell: #E8DDD1;
+      --teal: #1F9E98;
+      --deep: #136F70;
+      --aqua: #27B9BD;
+      --foam: #EDF5E9;
+      --sand: #E9D2B9;
+      --paper: #FFFDF8;
+      --ink: #174A4A;
+      --muted: #6E8887;
+      --line: rgba(23, 74, 74, .11);
+      --shadow: 0 18px 46px rgba(23, 74, 74, .08);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--foam); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--foam) 0%, var(--shell) 100%);
+      transition: background .28s ease;
+    }
+    body[data-state="cs"] { background: linear-gradient(180deg, var(--sky) 0%, var(--foam) 100%); }
+    body[data-state="hds"] { background: linear-gradient(180deg, var(--deep) 0%, var(--aqua) 100%); }
+    body[data-state="rest"] { background: linear-gradient(180deg, var(--sand) 0%, var(--shell) 100%); }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    .app {
+      width: min(100% - 18px, 680px);
+      margin: 0 auto;
+      padding: max(22px, env(safe-area-inset-top)) 0 calc(98px + env(safe-area-inset-bottom));
+    }
+
+    .main-card {
+      margin-top: 3vh;
+      padding: clamp(26px, 7vw, 44px) clamp(16px, 6vw, 38px);
+      border: 1px solid rgba(255,255,255,.52);
+      border-radius: 28px;
+      background: rgba(255,253,248,.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .date {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-align: center;
+    }
+    .clock {
+      margin-top: 10px;
+      font-size: clamp(50px, 14vw, 86px);
+      line-height: .98;
+      font-weight: 760;
+      letter-spacing: -.06em;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .clock .sec {
+      margin-left: 5px;
+      color: var(--teal);
+      font-size: .36em;
+      letter-spacing: -.02em;
+    }
+
+    .status-wrap { display: flex; justify-content: center; margin: 27px 0 19px; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .12em;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 0 5px rgba(31,158,152,.10);
+    }
+    body[data-state="hds"] .status-dot { background: var(--paper); box-shadow: 0 0 0 5px rgba(255,253,248,.22); }
+
+    .clock-action {
+      width: 100%;
+      min-height: 60px;
+      border: 0;
+      border-radius: 999px;
+      padding: 16px 22px;
+      background: var(--teal);
+      color: var(--paper);
+      font-size: 17px;
+      font-weight: 850;
+      letter-spacing: .04em;
+      cursor: pointer;
+      box-shadow: 0 10px 26px rgba(31,158,152,.16);
+      transition: transform .12s ease;
+    }
+    .clock-action.clock-in { background: var(--aqua); }
+    .clock-action:active, .activity-btn:active { transform: scale(.985); }
+
+    .activity-area { margin-top: 17px; }
+    .activity-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+    .activity-btn {
+      position: relative;
+      min-height: 60px;
+      border: 1px solid rgba(23,74,74,.08);
+      border-radius: 17px;
+      padding: 12px 7px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: .05em;
+      cursor: pointer;
+      opacity: .55;
+      transition: transform .12s ease, opacity .16s ease, box-shadow .16s ease;
+    }
+    .activity-btn.cs { background: var(--sky); }
+    .activity-btn.hds { background: var(--deep); color: var(--paper); }
+    .activity-btn.rest { background: var(--sand); }
+    .activity-btn.active {
+      opacity: 1;
+      box-shadow: 0 0 0 3px rgba(255,255,255,.74), 0 10px 24px rgba(23,74,74,.12);
+      transform: translateY(-2px);
+    }
+    .activity-btn.active::after {
+      content: "●";
+      position: absolute;
+      top: 7px;
+      right: 9px;
+      color: var(--teal);
+      font-size: 8px;
+    }
+    .activity-btn.hds.active::after { color: var(--paper); }
+
+    .shift-details { margin-top: 20px; }
+    .in-stamp {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .06em;
+    }
+    .in-stamp strong {
+      margin-left: 6px;
+      color: var(--ink);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .metric {
+      min-width: 0;
+      padding: 13px 5px;
+      border: 1px solid rgba(255,255,255,.48);
+      border-radius: 16px;
+      background: rgba(255,253,248,.70);
+      text-align: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: .08em;
+    }
+    .metric-value {
+      margin-top: 7px;
+      color: var(--ink);
+      font-size: clamp(15px, 4vw, 20px);
+      font-weight: 780;
+      letter-spacing: -.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .history-head { margin: 4vh 4px 13px; }
+    .history-title { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: -.04em; }
+    .history-note { margin-top: 5px; color: var(--muted); font-size: 10px; font-weight: 650; }
+    .table-wrap {
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.50);
+      border-radius: 22px;
+      background: rgba(255,253,248,.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 10px; }
+    th, td {
+      padding: 12px 2px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+    th {
+      color: var(--muted);
+      font-size: 7.5px;
+      font-weight: 850;
+      letter-spacing: .03em;
+      background: rgba(237,245,233,.52);
+    }
+    th:first-child, td:first-child { width: 16%; }
+    th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { width: 14%; }
+    th:nth-child(4), td:nth-child(4), th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { width: 14%; }
+    th:nth-child(7), td:nth-child(7) { width: 10%; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .row-delete {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 50%;
+      padding: 0;
+      background: var(--sand);
+      color: #765848;
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .row-delete:active { transform: scale(.92); filter: brightness(.96); }
+    tbody tr.completed { cursor: pointer; }
+    tbody tr.completed:active { background: rgba(131,205,213,.13); }
+    .ongoing { color: var(--teal); font-weight: 850; }
+    .empty {
+      padding: 40px 20px;
+      border: 1px solid rgba(255,255,255,.50);
+      border-radius: 22px;
+      background: rgba(255,253,248,.82);
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: var(--shadow);
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: calc(14px + env(safe-area-inset-bottom));
+      z-index: 15;
+      width: min(calc(100% - 28px), 360px);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 5px;
+      border: 1px solid rgba(255,255,255,.62);
+      border-radius: 999px;
+      background: rgba(255,253,248,.90);
+      box-shadow: 0 14px 40px rgba(23,74,74,.13);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .tab {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      cursor: pointer;
+    }
+    .tab[aria-selected="true"] { background: var(--teal); color: var(--paper); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: end center;
+      padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
+      background: rgba(15,55,55,.28);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .modal {
+      width: min(100%, 520px);
+      max-height: min(88vh, 720px);
+      overflow: auto;
+      padding: 22px 18px 18px;
+      border: 1px solid rgba(255,255,255,.64);
+      border-radius: 28px;
+      background: rgba(255,253,248,.97);
+      box-shadow: 0 24px 70px rgba(23,74,74,.22);
+    }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-title { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+    .modal-close {
+      width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--foam); color: var(--ink); font-size: 20px; cursor: pointer;
+    }
+    .modal-date { margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 19px; }
+    .field { min-width: 0; }
+    .field label { display: block; margin: 0 0 6px 2px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: .06em; }
+    .field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 13px 12px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 760;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+    .field-hint { margin-top: 5px; color: var(--muted); font-size: 8.5px; line-height: 1.4; }
+    .cs-preview {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(131,205,213,.17);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .cs-preview strong { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }
+    .modal-actions { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 18px; }
+    .modal-btn {
+      min-height: 52px;
+      border: 0;
+      border-radius: 999px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .modal-btn.save { background: var(--teal); color: var(--paper); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(82px + env(safe-area-inset-bottom));
+      z-index: 60;
+      transform: translate(-50%, 40px);
+      opacity: 0;
+      max-width: calc(100vw - 34px);
+      padding: 11px 15px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: var(--paper);
+      font-size: 11px;
+      font-weight: 800;
+      pointer-events: none;
+      transition: .18s ease;
+    }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+    @media (max-width: 430px) {
+      .main-card { padding: 25px 15px; }
+      .clock { font-size: clamp(48px, 15vw, 68px); }
+      th, td { font-size: 9.5px; padding: 11px 1px; }
+      th { font-size: 7px; }
+      .row-delete { width: 25px; height: 25px; font-size: 16px; }
+      .history-note { font-size: 9px; }
+    }
+  </style>
+</head>
+<body data-state="idle">
+  <main class="app">
+    <section id="panel-clock">
+      <div class="main-card">
+        <div class="date" id="date-live">----</div>
+        <div class="clock" id="clock-live">--:--<span class="sec">:--</span></div>
+
+        <div class="status-wrap">
+          <div class="status"><span class="status-dot"></span><span id="status-text">OFF DUTY</span></div>
+        </div>
+
+        <button class="clock-action clock-in" id="clock-action" type="button">出勤</button>
+
+        <div class="activity-area" id="activity-area" hidden>
+          <div class="activity-buttons">
+            <button class="activity-btn cs" type="button" data-activity="cs">CS</button>
+            <button class="activity-btn hds" type="button" data-activity="hds">HDS</button>
+            <button class="activity-btn rest" type="button" data-activity="rest">REST</button>
+          </div>
+        </div>
+
+        <div class="shift-details" id="shift-details" hidden>
+          <div class="in-stamp">IN <strong id="stamp-in">--:--</strong></div>
+          <div class="metrics" aria-label="現在の勤務時間集計">
+            <div class="metric"><div class="metric-label">CS</div><div class="metric-value" id="metric-cs">00:00:00</div></div>
+            <div class="metric"><div class="metric-label">HDS</div><div class="metric-value" id="metric-hds">00:00:00</div></div>
+            <div class="metric"><div class="metric-label">REST</div><div class="metric-value" id="metric-rest">00:00:00</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-history" hidden>
+      <div class="history-head">
+        <h1 class="history-title">履歴</h1>
+        <div class="history-note">行をタップで編集、右端の×で削除</div>
+      </div>
+      <div id="history-container"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="画面切り替え">
+    <button class="tab" id="tab-clock" type="button" aria-selected="true">打刻</button>
+    <button class="tab" id="tab-history" type="button" aria-selected="false">履歴</button>
+  </nav>
+
+  <div class="modal-backdrop" id="edit-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+      <div class="modal-head">
+        <div>
+          <h2 class="modal-title" id="edit-title">履歴を編集</h2>
+          <div class="modal-date" id="edit-date">----</div>
+        </div>
+        <button class="modal-close" id="edit-close" type="button" aria-label="閉じる">×</button>
+      </div>
+
+      <div class="edit-grid">
+        <div class="field">
+          <label for="edit-in">IN</label>
+          <input id="edit-in" inputmode="numeric" autocomplete="off" placeholder="09:00">
+        </div>
+        <div class="field">
+          <label for="edit-out">OUT</label>
+          <input id="edit-out" inputmode="numeric" autocomplete="off" placeholder="18:00">
+          <div class="field-hint">日跨ぎは 25:00 のように入力</div>
+        </div>
+        <div class="field">
+          <label for="edit-hds">HDS TOTAL</label>
+          <input id="edit-hds" inputmode="numeric" autocomplete="off" placeholder="01:30">
+        </div>
+        <div class="field">
+          <label for="edit-rest">REST TOTAL</label>
+          <input id="edit-rest" inputmode="numeric" autocomplete="off" placeholder="01:00">
+        </div>
+      </div>
+
+      <div class="cs-preview"><span>CSは自動計算</span><strong id="edit-cs-preview">00:00</strong></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn save" id="edit-save" type="button">保存</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const KEY = 'hds-status-time-tracker-v3';
+    const OLD_KEY = 'hds-simple-time-tracker-v2';
+    const TZ = 'Asia/Tokyo';
+    const JST_OFFSET = '+09:00';
+    const $ = id => document.getElementById(id);
+
+    let data = { version: 3, shifts: [] };
+    let activeTab = 'clock';
+    let editingId = null;
+    let toastTimer;
+
+    const fmt = {
+      date: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }),
+      dayCompact: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, month: '2-digit', day: '2-digit' }),
+      timeHMS: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }),
+      timeHM: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    };
+
+    const clone = value => JSON.parse(JSON.stringify(value));
+    const nowIso = () => new Date().toISOString();
+    const toMs = iso => new Date(iso).getTime();
+    const validIso = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+    const randomId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    function ymdParts(value) {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(value instanceof Date ? value : new Date(value));
+      const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+      return { y: Number(map.year), m: Number(map.month), d: Number(map.day) };
+    }
+
+    function ymdKey(value) {
+      const { y, m, d } = ymdParts(value);
+      return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+
+    function calendarDayNumber(value) {
+      const { y, m, d } = ymdParts(value);
+      return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+    }
+
+    function localHourMinute(value) {
+      const parts = fmt.timeHM.formatToParts(value instanceof Date ? value : new Date(value));
+      const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+      return { hour: Number(map.hour), minute: Number(map.minute) };
+    }
+
+    function extendedTimeText(iso, baseIso) {
+      if (!iso || !baseIso) return '--:--';
+      const { hour, minute } = localHourMinute(iso);
+      const dayDiff = calendarDayNumber(iso) - calendarDayNumber(baseIso);
+      const extendedHour = hour + Math.max(0, dayDiff) * 24;
+      return `${String(extendedHour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+    }
+
+    function validActivity(s) {
+      return s && ['cs', 'hds', 'rest'].includes(s.type) && validIso(s.start) &&
+        (s.end === null || validIso(s.end)) && (s.end === null || toMs(s.end) >= toMs(s.start));
+    }
+
+    function validShift(s) {
+      const editsOk = s?.editedDurations === undefined || s?.editedDurations === null ||
+        (Number.isFinite(s.editedDurations.hds) && s.editedDurations.hds >= 0 && Number.isFinite(s.editedDurations.rest) && s.editedDurations.rest >= 0);
+      return s && typeof s.id === 'string' && validIso(s.workStart) &&
+        (s.workEnd === null || validIso(s.workEnd)) &&
+        (s.workEnd === null || toMs(s.workEnd) >= toMs(s.workStart)) &&
+        Array.isArray(s.activitySessions) && s.activitySessions.every(validActivity) && editsOk;
+    }
+
+    function save(next) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next));
+        data = next;
+        return true;
+      } catch {
+        showToast('保存できませんでした');
+        return false;
+      }
+    }
+
+    function migrateV2(parsed) {
+      if (parsed?.version !== 2 || !Array.isArray(parsed.shifts)) return null;
+      const shifts = parsed.shifts.filter(s => s && validIso(s.workStart)).map(s => {
+        const activities = [];
+        (Array.isArray(s.hdsSessions) ? s.hdsSessions : []).forEach(x => {
+          if (x && validIso(x.start)) activities.push({ type: 'hds', start: x.start, end: validIso(x.end) ? x.end : null });
+        });
+        (Array.isArray(s.breakSessions) ? s.breakSessions : []).forEach(x => {
+          if (x && validIso(x.start)) activities.push({ type: 'rest', start: x.start, end: validIso(x.end) ? x.end : null });
+        });
+        activities.sort((a, b) => toMs(a.start) - toMs(b.start));
+        return {
+          id: typeof s.id === 'string' ? s.id : randomId(),
+          workStart: s.workStart,
+          workEnd: validIso(s.workEnd) ? s.workEnd : null,
+          activitySessions: activities
+        };
+      });
+      return { version: 3, shifts };
+    }
+
+    function load() {
+      try {
+        const current = localStorage.getItem(KEY);
+        if (current) {
+          const parsed = JSON.parse(current);
+          if (parsed?.version === 3 && Array.isArray(parsed.shifts) && parsed.shifts.every(validShift)) data = parsed;
+          return;
+        }
+        const old = localStorage.getItem(OLD_KEY);
+        if (old) {
+          const migrated = migrateV2(JSON.parse(old));
+          if (migrated) save(migrated);
+        }
+      } catch {
+        data = { version: 3, shifts: [] };
+      }
+    }
+
+    function activeShift() { return data.shifts.find(s => s.workEnd === null) || null; }
+
+    function openActivity(shift) {
+      if (!shift?.activitySessions?.length) return null;
+      return [...shift.activitySessions].reverse().find(s => s.end === null) || null;
+    }
+
+    function currentState() {
+      const shift = activeShift();
+      if (!shift) return 'idle';
+      return openActivity(shift)?.type || 'cs';
+    }
+
+    function elapsed(start, end) { return Math.max(0, end - start); }
+
+    function sumActivity(shift, type, fallbackEnd) {
+      return shift.activitySessions.reduce((total, session) => {
+        if (session.type !== type) return total;
+        const end = session.end ? toMs(session.end) : fallbackEnd;
+        return total + elapsed(toMs(session.start), end);
+      }, 0);
+    }
+
+    function durations(shift, now = Date.now()) {
+      if (!shift) return { gross: 0, cs: 0, hds: 0, rest: 0 };
+      const end = shift.workEnd ? toMs(shift.workEnd) : now;
+      const gross = elapsed(toMs(shift.workStart), end);
+      const canUseEdited = shift.workEnd && shift.editedDurations &&
+        Number.isFinite(shift.editedDurations.hds) && Number.isFinite(shift.editedDurations.rest);
+      const hds = canUseEdited ? shift.editedDurations.hds : sumActivity(shift, 'hds', end);
+      const rest = canUseEdited ? shift.editedDurations.rest : sumActivity(shift, 'rest', end);
+      return {
+        gross,
+        cs: Math.max(0, gross - hds - rest),
+        hds: Math.max(0, hds),
+        rest: Math.max(0, rest)
+      };
+    }
+
+    function durationText(ms, withSeconds = true) {
+      const total = Math.floor(Math.max(0, ms) / 1000);
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}${withSeconds ? ':' + String(s).padStart(2,'0') : ''}`;
+    }
+
+    function parseDurationInput(text) {
+      const m = String(text).trim().match(/^(\d{1,3}):([0-5]\d)$/);
+      if (!m) return null;
+      return (Number(m[1]) * 60 + Number(m[2])) * 60000;
+    }
+
+    function parseClockInput(text, maxHour = 71) {
+      const m = String(text).trim().match(/^(\d{1,2}):([0-5]\d)$/);
+      if (!m) return null;
+      const h = Number(m[1]);
+      const min = Number(m[2]);
+      if (h < 0 || h > maxHour) return null;
+      return { h, min };
+    }
+
+    function addDaysToKey(key, days) {
+      const [y,m,d] = key.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d + days));
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;
+    }
+
+    function isoFromBaseKeyAndTime(baseKey, text, allowExtended) {
+      const parsed = parseClockInput(text, allowExtended ? 71 : 23);
+      if (!parsed) return null;
+      const days = allowExtended ? Math.floor(parsed.h / 24) : 0;
+      const hour = allowExtended ? parsed.h % 24 : parsed.h;
+      const key = addDaysToKey(baseKey, days);
+      const dt = new Date(`${key}T${String(hour).padStart(2,'0')}:${String(parsed.min).padStart(2,'0')}:00${JST_OFFSET}`);
+      return Number.isFinite(dt.getTime()) ? dt.toISOString() : null;
+    }
+
+    function timeText(iso) { return iso ? fmt.timeHM.format(new Date(iso)) : '--:--'; }
+
+    function showToast(text) {
+      clearTimeout(toastTimer);
+      const el = $('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
+    }
+
+    function clockAction() {
+      const next = clone(data);
+      const shift = next.shifts.find(s => s.workEnd === null) || null;
+      const now = nowIso();
+
+      if (!shift) {
+        next.shifts.unshift({
+          id: randomId(),
+          workStart: now,
+          workEnd: null,
+          activitySessions: [{ type: 'cs', start: now, end: null }]
+        });
+        if (!save(next)) return;
+        render();
+        showToast('出勤しました');
+        return;
+      }
+
+      const open = openActivity(shift);
+      if (open) open.end = now;
+      shift.workEnd = now;
+      if (!save(next)) return;
+      render();
+      showToast('退勤しました');
+    }
+
+    function changeActivity(type) {
+      if (!['cs','hds','rest'].includes(type)) return;
+      const next = clone(data);
+      const shift = next.shifts.find(s => s.workEnd === null) || null;
+      if (!shift) return;
+      const open = openActivity(shift);
+      if (open?.type === type) return;
+      const now = nowIso();
+      if (open) open.end = now;
+      shift.activitySessions.push({ type, start: now, end: null });
+      if (!save(next)) return;
+      render();
+      showToast({ cs:'CSに切り替えました', hds:'HDSに切り替えました', rest:'休憩を開始しました' }[type]);
+    }
+
+    function renderMain() {
+      const shift = activeShift();
+      const state = currentState();
+      document.body.dataset.state = state;
+
+      $('status-text').textContent = { idle:'OFF DUTY', cs:'CS WORKING', hds:'HDS WORKING', rest:'RESTING' }[state] || 'OFF DUTY';
+      const action = $('clock-action');
+      action.textContent = shift ? '退勤' : '出勤';
+      action.classList.toggle('clock-in', !shift);
+      $('activity-area').hidden = !shift;
+      $('shift-details').hidden = !shift;
+
+      document.querySelectorAll('[data-activity]').forEach(btn => {
+        const active = btn.dataset.activity === state;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+
+      if (shift) $('stamp-in').textContent = timeText(shift.workStart);
+      tick();
+    }
+
+    function tick() {
+      const now = new Date();
+      const parts = fmt.timeHMS.format(now).split(':');
+      $('date-live').textContent = fmt.date.format(now);
+      $('clock-live').innerHTML = `${parts[0]}:${parts[1]}<span class="sec">:${parts[2]}</span>`;
+
+      const shift = activeShift();
+      if (shift) {
+        const d = durations(shift, now.getTime());
+        $('metric-cs').textContent = durationText(d.cs);
+        $('metric-hds').textContent = durationText(d.hds);
+        $('metric-rest').textContent = durationText(d.rest);
+      }
+    }
+
+    function renderHistory() {
+      const host = $('history-container');
+      host.replaceChildren();
+
+      if (!data.shifts.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'まだ履歴はありません';
+        host.append(empty);
+        return;
+      }
+
+      const rows = [...data.shifts].sort((a,b) => toMs(b.workStart) - toMs(a.workStart));
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const hr = document.createElement('tr');
+      ['日付','IN','OUT','CS','HDS','REST',''].forEach(name => {
+        const th = document.createElement('th'); th.textContent = name; hr.append(th);
+      });
+      thead.append(hr); table.append(thead);
+
+      const tbody = document.createElement('tbody');
+      rows.forEach(shift => {
+        const tr = document.createElement('tr');
+        tr.dataset.id = shift.id;
+        const ongoing = shift.workEnd === null;
+        if (!ongoing) {
+          tr.className = 'completed';
+          tr.tabIndex = 0;
+          tr.setAttribute('role','button');
+          tr.setAttribute('aria-label','履歴を編集');
+        }
+        const d = durations(shift, Date.now());
+        const values = [
+          fmt.dayCompact.format(new Date(shift.workStart)),
+          timeText(shift.workStart),
+          ongoing ? '勤務中' : extendedTimeText(shift.workEnd, shift.workStart),
+          durationText(d.cs, false),
+          durationText(d.hds, false),
+          durationText(d.rest, false)
+        ];
+        values.forEach((value,index) => {
+          const td = document.createElement('td'); td.textContent = value;
+          if (ongoing && index === 2) td.className = 'ongoing';
+          tr.append(td);
+        });
+
+        const deleteCell = document.createElement('td');
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'row-delete';
+        deleteButton.textContent = '×';
+        deleteButton.setAttribute('aria-label', `${fmt.dayCompact.format(new Date(shift.workStart))}の履歴を削除`);
+        deleteButton.addEventListener('click', e => {
+          e.stopPropagation();
+          deleteShift(shift.id);
+        });
+        deleteCell.append(deleteButton);
+        tr.append(deleteCell);
+
+        if (!ongoing) {
+          const open = () => openEdit(shift.id);
+          tr.addEventListener('click', open);
+          tr.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === tr) { e.preventDefault(); open(); } });
+        }
+        tbody.append(tr);
+      });
+      table.append(tbody); wrap.append(table); host.append(wrap);
+    }
+
+    function openEdit(id) {
+      const shift = data.shifts.find(s => s.id === id && s.workEnd !== null);
+      if (!shift) return;
+      editingId = id;
+      const d = durations(shift);
+      $('edit-date').textContent = fmt.date.format(new Date(shift.workStart));
+      $('edit-in').value = timeText(shift.workStart);
+      $('edit-out').value = extendedTimeText(shift.workEnd, shift.workStart);
+      $('edit-hds').value = durationText(d.hds, false);
+      $('edit-rest').value = durationText(d.rest, false);
+      updateCsPreview();
+      $('edit-backdrop').hidden = false;
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => $('edit-in').focus(), 50);
+    }
+
+    function closeEdit() {
+      editingId = null;
+      $('edit-backdrop').hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function updateCsPreview() {
+      if (!editingId) return;
+      const shift = data.shifts.find(s => s.id === editingId);
+      if (!shift) return;
+      const baseKey = ymdKey(shift.workStart);
+      const startIso = isoFromBaseKeyAndTime(baseKey, $('edit-in').value, false);
+      const endIso = isoFromBaseKeyAndTime(baseKey, $('edit-out').value, true);
+      const hds = parseDurationInput($('edit-hds').value);
+      const rest = parseDurationInput($('edit-rest').value);
+      if (!startIso || !endIso || hds === null || rest === null || toMs(endIso) < toMs(startIso)) {
+        $('edit-cs-preview').textContent = '--:--';
+        return;
+      }
+      const gross = toMs(endIso) - toMs(startIso);
+      if (hds + rest > gross) {
+        $('edit-cs-preview').textContent = '--:--';
+        return;
+      }
+      $('edit-cs-preview').textContent = durationText(gross - hds - rest, false);
+    }
+
+    function saveEdit() {
+      if (!editingId) return;
+      const original = data.shifts.find(s => s.id === editingId && s.workEnd !== null);
+      if (!original) return;
+      const baseKey = ymdKey(original.workStart);
+      const startIso = isoFromBaseKeyAndTime(baseKey, $('edit-in').value, false);
+      const endIso = isoFromBaseKeyAndTime(baseKey, $('edit-out').value, true);
+      const hds = parseDurationInput($('edit-hds').value);
+      const rest = parseDurationInput($('edit-rest').value);
+
+      if (!startIso || !endIso || hds === null || rest === null) {
+        showToast('HH:MM形式で入力してください');
+        return;
+      }
+      if (toMs(endIso) < toMs(startIso)) {
+        showToast('OUTはINより後にしてください');
+        return;
+      }
+      const gross = toMs(endIso) - toMs(startIso);
+      if (hds + rest > gross) {
+        showToast('HDS＋RESTが勤務時間を超えています');
+        return;
+      }
+
+      const next = clone(data);
+      const shift = next.shifts.find(s => s.id === editingId);
+      shift.workStart = startIso;
+      shift.workEnd = endIso;
+      shift.editedDurations = { hds, rest };
+      if (!save(next)) return;
+      closeEdit();
+      render();
+      showToast('履歴を更新しました');
+    }
+
+    function deleteShift(id) {
+      if (!id) return;
+      const exists = data.shifts.some(s => s.id === id);
+      if (!exists) return;
+      const next = clone(data);
+      next.shifts = next.shifts.filter(s => s.id !== id);
+      if (!save(next)) return;
+      if (editingId === id) closeEdit();
+      render();
+      showToast('削除しました');
+    }
+
+    function selectTab(tab) {
+      activeTab = tab;
+      const history = tab === 'history';
+      $('panel-clock').hidden = history;
+      $('panel-history').hidden = !history;
+      $('tab-clock').setAttribute('aria-selected', String(!history));
+      $('tab-history').setAttribute('aria-selected', String(history));
+      if (history) renderHistory();
+    }
+
+    $('clock-action').addEventListener('click', clockAction);
+    document.querySelectorAll('[data-activity]').forEach(btn => btn.addEventListener('click', () => changeActivity(btn.dataset.activity)));
+    $('tab-clock').addEventListener('click', () => selectTab('clock'));
+    $('tab-history').addEventListener('click', () => selectTab('history'));
+    $('edit-close').addEventListener('click', closeEdit);
+    $('edit-save').addEventListener('click', saveEdit);
+    ['edit-in','edit-out','edit-hds','edit-rest'].forEach(id => $(id).addEventListener('input', updateCsPreview));
+    $('edit-backdrop').addEventListener('click', e => { if (e.target === $('edit-backdrop')) closeEdit(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('edit-backdrop').hidden) closeEdit(); });
+
+    window.addEventListener('storage', event => {
+      if (event.key !== KEY || !event.newValue) return;
+      try {
+        const incoming = JSON.parse(event.newValue);
+        if (incoming?.version === 3 && Array.isArray(incoming.shifts) && incoming.shifts.every(validShift)) {
+          data = incoming;
+          render();
+        }
+      } catch {}
+    });
+
+    function render() {
+      renderMain();
+      if (activeTab === 'history') renderHistory();
+    }
+
+    load();
+    render();
+    setInterval(() => {
+      if (!document.hidden) {
+        tick();
+        if (activeTab === 'history' && activeShift()) renderHistory();
+      }
+    }, 1000);
+
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
+    }
+  })();
+  </script>
+</body>
+</html>
