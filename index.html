@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="打刻">
-  <meta name="description" content="出退勤とCS・HDS・RESTをシンプルに記録する個人用打刻アプリ">
+  <meta name="description" content="CS・HDS・RESTの実稼働をシンプルに記録する個人用打刻アプリ">
   <title>打刻</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icon-192.png">
@@ -81,12 +81,6 @@
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    .clock .sec {
-      margin-left: 5px;
-      color: var(--teal);
-      font-size: .36em;
-      letter-spacing: -.02em;
-    }
 
     .status-wrap { display: flex; justify-content: center; margin: 27px 0 19px; }
     .status {
@@ -106,22 +100,27 @@
     }
     body[data-state="hds"] .status-dot { background: var(--paper); box-shadow: 0 0 0 5px rgba(255,253,248,.22); }
 
+    .clock-in-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
     .clock-action {
       width: 100%;
       min-height: 60px;
       border: 0;
       border-radius: 999px;
-      padding: 16px 22px;
-      background: var(--teal);
+      padding: 16px 18px;
       color: var(--paper);
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 850;
-      letter-spacing: .04em;
+      letter-spacing: .03em;
       cursor: pointer;
-      box-shadow: 0 10px 26px rgba(31,158,152,.16);
-      transition: transform .12s ease;
+      transition: transform .12s ease, box-shadow .16s ease;
     }
-    .clock-action.clock-in { background: var(--aqua); }
+    .clock-action.cs-in { background: var(--sky); color: var(--ink); box-shadow: 0 10px 26px rgba(131,205,213,.20); }
+    .clock-action.hds-in { background: var(--deep); box-shadow: 0 10px 26px rgba(19,111,112,.20); }
+    .clock-action.clock-out { background: var(--teal); box-shadow: 0 10px 26px rgba(31,158,152,.16); }
     .clock-action:active, .activity-btn:active { transform: scale(.985); }
 
     .activity-area { margin-top: 17px; }
@@ -174,6 +173,22 @@
       margin-left: 6px;
       color: var(--ink);
       font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .cs-stamps {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .05em;
+    }
+    .cs-stamps strong {
+      margin-left: 4px;
+      color: var(--ink);
+      font-size: 11px;
       font-variant-numeric: tabular-nums;
     }
     .metrics {
@@ -236,10 +251,10 @@
       letter-spacing: .03em;
       background: rgba(237,245,233,.52);
     }
-    th:first-child, td:first-child { width: 16%; }
-    th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { width: 14%; }
+    th:first-child, td:first-child { width: 14%; }
+    th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { width: 15%; }
     th:nth-child(4), td:nth-child(4), th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { width: 14%; }
-    th:nth-child(7), td:nth-child(7) { width: 10%; }
+    th:nth-child(7), td:nth-child(7) { width: 14%; }
     tbody tr:last-child td { border-bottom: 0; }
     .row-delete {
       width: 28px;
@@ -405,13 +420,17 @@
     <section id="panel-clock">
       <div class="main-card">
         <div class="date" id="date-live">----</div>
-        <div class="clock" id="clock-live">--:--<span class="sec">:--</span></div>
+        <div class="clock" id="clock-live">--:--</div>
 
         <div class="status-wrap">
           <div class="status"><span class="status-dot"></span><span id="status-text">OFF DUTY</span></div>
         </div>
 
-        <button class="clock-action clock-in" id="clock-action" type="button">出勤</button>
+        <div class="clock-in-options" id="clock-in-options">
+          <button class="clock-action cs-in" id="clock-in-cs" type="button">CS出勤</button>
+          <button class="clock-action hds-in" id="clock-in-hds" type="button">HDS出勤</button>
+        </div>
+        <button class="clock-action clock-out" id="clock-out" type="button" hidden>退勤</button>
 
         <div class="activity-area" id="activity-area" hidden>
           <div class="activity-buttons">
@@ -423,10 +442,14 @@
 
         <div class="shift-details" id="shift-details" hidden>
           <div class="in-stamp">IN <strong id="stamp-in">--:--</strong></div>
+          <div class="cs-stamps" id="cs-stamps">
+            <span>CS IN <strong id="stamp-cs-in">--:--</strong></span>
+            <span>CS OUT <strong id="stamp-cs-out">--:--</strong></span>
+          </div>
           <div class="metrics" aria-label="現在の勤務時間集計">
-            <div class="metric"><div class="metric-label">CS</div><div class="metric-value" id="metric-cs">00:00:00</div></div>
-            <div class="metric"><div class="metric-label">HDS</div><div class="metric-value" id="metric-hds">00:00:00</div></div>
-            <div class="metric"><div class="metric-label">REST</div><div class="metric-value" id="metric-rest">00:00:00</div></div>
+            <div class="metric"><div class="metric-label">CS</div><div class="metric-value" id="metric-cs">00:00</div></div>
+            <div class="metric"><div class="metric-label">HDS</div><div class="metric-value" id="metric-hds">00:00</div></div>
+            <div class="metric"><div class="metric-label">REST</div><div class="metric-value" id="metric-rest">00:00</div></div>
           </div>
         </div>
       </div>
@@ -458,13 +481,18 @@
 
       <div class="edit-grid">
         <div class="field">
-          <label for="edit-in">IN</label>
-          <input id="edit-in" inputmode="numeric" autocomplete="off" placeholder="09:00">
+          <label for="edit-cs-in">CS IN</label>
+          <input id="edit-cs-in" inputmode="numeric" autocomplete="off" placeholder="09:00">
+          <div class="field-hint">CSなしの場合は空欄</div>
         </div>
         <div class="field">
-          <label for="edit-out">OUT</label>
-          <input id="edit-out" inputmode="numeric" autocomplete="off" placeholder="18:00">
+          <label for="edit-cs-out">CS OUT</label>
+          <input id="edit-cs-out" inputmode="numeric" autocomplete="off" placeholder="18:00">
           <div class="field-hint">日跨ぎは 25:00 のように入力</div>
+        </div>
+        <div class="field">
+          <label for="edit-cs-total">CS TOTAL</label>
+          <input id="edit-cs-total" inputmode="numeric" autocomplete="off" placeholder="06:30">
         </div>
         <div class="field">
           <label for="edit-hds">HDS TOTAL</label>
@@ -475,8 +503,6 @@
           <input id="edit-rest" inputmode="numeric" autocomplete="off" placeholder="01:00">
         </div>
       </div>
-
-      <div class="cs-preview"><span>CSは自動計算</span><strong id="edit-cs-preview">00:00</strong></div>
 
       <div class="modal-actions">
         <button class="modal-btn save" id="edit-save" type="button">保存</button>
@@ -496,7 +522,7 @@
     const JST_OFFSET = '+09:00';
     const $ = id => document.getElementById(id);
 
-    let data = { version: 3, shifts: [] };
+    let data = { version: 4, shifts: [] };
     let activeTab = 'clock';
     let editingId = null;
     let toastTimer;
@@ -504,7 +530,6 @@
     const fmt = {
       date: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }),
       dayCompact: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, month: '2-digit', day: '2-digit' }),
-      timeHMS: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }),
       timeHM: new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
     };
 
@@ -551,13 +576,18 @@
         (s.end === null || validIso(s.end)) && (s.end === null || toMs(s.end) >= toMs(s.start));
     }
 
+    function validEditedSummary(s) {
+      if (s === undefined || s === null) return true;
+      const timesOk = (s.csIn === null || validIso(s.csIn)) && (s.csOut === null || validIso(s.csOut));
+      const durationsOk = ['cs','hds','rest'].every(k => Number.isFinite(s[k]) && s[k] >= 0);
+      return timesOk && durationsOk;
+    }
+
     function validShift(s) {
-      const editsOk = s?.editedDurations === undefined || s?.editedDurations === null ||
-        (Number.isFinite(s.editedDurations.hds) && s.editedDurations.hds >= 0 && Number.isFinite(s.editedDurations.rest) && s.editedDurations.rest >= 0);
       return s && typeof s.id === 'string' && validIso(s.workStart) &&
         (s.workEnd === null || validIso(s.workEnd)) &&
         (s.workEnd === null || toMs(s.workEnd) >= toMs(s.workStart)) &&
-        Array.isArray(s.activitySessions) && s.activitySessions.every(validActivity) && editsOk;
+        Array.isArray(s.activitySessions) && s.activitySessions.every(validActivity) && validEditedSummary(s.editedSummary);
     }
 
     function save(next) {
@@ -571,25 +601,120 @@
       }
     }
 
-    function migrateV2(parsed) {
-      if (parsed?.version !== 2 || !Array.isArray(parsed.shifts)) return null;
+    function materializeSessions(shift) {
+      const startMs = toMs(shift.workStart);
+      const endMs = shift.workEnd ? toMs(shift.workEnd) : null;
+      const src = (Array.isArray(shift.activitySessions) ? shift.activitySessions : [])
+        .filter(validActivity)
+        .map(x => ({ type: x.type, start: x.start, end: x.end }))
+        .sort((a,b) => toMs(a.start) - toMs(b.start));
+      const out = [];
+      let cursor = startMs;
+
+      for (const session of src) {
+        let s = Math.max(startMs, toMs(session.start));
+        let e = session.end === null ? null : toMs(session.end);
+        if (endMs !== null) {
+          if (s > endMs) break;
+          if (e !== null) e = Math.min(e, endMs);
+        }
+        if (e !== null && e < s) continue;
+        if (s > cursor) out.push({ type: 'cs', start: new Date(cursor).toISOString(), end: new Date(s).toISOString() });
+        if (e === null) {
+          out.push({ type: session.type, start: new Date(Math.max(s, cursor)).toISOString(), end: null });
+          return out;
+        }
+        if (e > cursor) {
+          out.push({ type: session.type, start: new Date(Math.max(s, cursor)).toISOString(), end: new Date(e).toISOString() });
+          cursor = e;
+        }
+      }
+
+      if (endMs !== null) {
+        if (cursor < endMs) out.push({ type: 'cs', start: new Date(cursor).toISOString(), end: new Date(endMs).toISOString() });
+      } else {
+        out.push({ type: 'cs', start: new Date(cursor).toISOString(), end: null });
+      }
+      return out;
+    }
+
+    function rawSummaryFromSessions(shift, now = Date.now()) {
+      const endFallback = shift.workEnd ? toMs(shift.workEnd) : now;
+      const totals = { cs: 0, hds: 0, rest: 0 };
+      let firstCs = null;
+      let lastCsEnd = null;
+      let csOpen = false;
+
+      for (const session of shift.activitySessions) {
+        const start = toMs(session.start);
+        const end = session.end ? toMs(session.end) : endFallback;
+        totals[session.type] += Math.max(0, end - start);
+        if (session.type === 'cs') {
+          if (firstCs === null || start < firstCs) firstCs = start;
+          if (session.end === null) {
+            csOpen = true;
+          } else if (lastCsEnd === null || toMs(session.end) > lastCsEnd) {
+            lastCsEnd = toMs(session.end);
+          }
+        }
+      }
+
+      return {
+        ...totals,
+        csIn: firstCs === null ? null : new Date(firstCs).toISOString(),
+        csOut: csOpen ? null : (lastCsEnd === null ? null : new Date(lastCsEnd).toISOString())
+      };
+    }
+
+    function migrateToV4(parsed) {
+      if (!parsed || !Array.isArray(parsed.shifts)) return null;
       const shifts = parsed.shifts.filter(s => s && validIso(s.workStart)).map(s => {
-        const activities = [];
-        (Array.isArray(s.hdsSessions) ? s.hdsSessions : []).forEach(x => {
-          if (x && validIso(x.start)) activities.push({ type: 'hds', start: x.start, end: validIso(x.end) ? x.end : null });
-        });
-        (Array.isArray(s.breakSessions) ? s.breakSessions : []).forEach(x => {
-          if (x && validIso(x.start)) activities.push({ type: 'rest', start: x.start, end: validIso(x.end) ? x.end : null });
-        });
-        activities.sort((a, b) => toMs(a.start) - toMs(b.start));
-        return {
+        const base = {
           id: typeof s.id === 'string' ? s.id : randomId(),
           workStart: s.workStart,
           workEnd: validIso(s.workEnd) ? s.workEnd : null,
-          activitySessions: activities
+          activitySessions: Array.isArray(s.activitySessions) ? s.activitySessions : []
         };
+        base.activitySessions = materializeSessions(base);
+        if (base.workEnd && s.editedDurations && Number.isFinite(s.editedDurations.hds) && Number.isFinite(s.editedDurations.rest)) {
+          const raw = rawSummaryFromSessions(base, toMs(base.workEnd));
+          const gross = Math.max(0, toMs(base.workEnd) - toMs(base.workStart));
+          const hds = Math.max(0, s.editedDurations.hds);
+          const rest = Math.max(0, s.editedDurations.rest);
+          base.editedSummary = {
+            csIn: raw.csIn,
+            csOut: raw.csOut,
+            cs: Math.max(0, gross - hds - rest),
+            hds,
+            rest
+          };
+        }
+        return base;
       });
-      return { version: 3, shifts };
+      return { version: 4, shifts };
+    }
+
+    function migrateV2(parsed) {
+      if (parsed?.version !== 2 || !Array.isArray(parsed.shifts)) return null;
+      const temp = {
+        version: 3,
+        shifts: parsed.shifts.filter(s => s && validIso(s.workStart)).map(s => {
+          const activities = [];
+          (Array.isArray(s.hdsSessions) ? s.hdsSessions : []).forEach(x => {
+            if (x && validIso(x.start)) activities.push({ type: 'hds', start: x.start, end: validIso(x.end) ? x.end : null });
+          });
+          (Array.isArray(s.breakSessions) ? s.breakSessions : []).forEach(x => {
+            if (x && validIso(x.start)) activities.push({ type: 'rest', start: x.start, end: validIso(x.end) ? x.end : null });
+          });
+          return {
+            id: typeof s.id === 'string' ? s.id : randomId(),
+            workStart: s.workStart,
+            workEnd: validIso(s.workEnd) ? s.workEnd : null,
+            activitySessions: activities
+          };
+        })
+      };
+      return migrateToV4(temp);
     }
 
     function load() {
@@ -597,8 +722,14 @@
         const current = localStorage.getItem(KEY);
         if (current) {
           const parsed = JSON.parse(current);
-          if (parsed?.version === 3 && Array.isArray(parsed.shifts) && parsed.shifts.every(validShift)) data = parsed;
-          return;
+          if (parsed?.version === 4 && Array.isArray(parsed.shifts) && parsed.shifts.every(validShift)) {
+            data = parsed;
+            return;
+          }
+          if ((parsed?.version === 3 || parsed?.version === undefined) && Array.isArray(parsed.shifts)) {
+            const migrated = migrateToV4(parsed);
+            if (migrated) { save(migrated); return; }
+          }
         }
         const old = localStorage.getItem(OLD_KEY);
         if (old) {
@@ -606,7 +737,7 @@
           if (migrated) save(migrated);
         }
       } catch {
-        data = { version: 3, shifts: [] };
+        data = { version: 4, shifts: [] };
       }
     }
 
@@ -623,38 +754,17 @@
       return openActivity(shift)?.type || 'cs';
     }
 
-    function elapsed(start, end) { return Math.max(0, end - start); }
-
-    function sumActivity(shift, type, fallbackEnd) {
-      return shift.activitySessions.reduce((total, session) => {
-        if (session.type !== type) return total;
-        const end = session.end ? toMs(session.end) : fallbackEnd;
-        return total + elapsed(toMs(session.start), end);
-      }, 0);
+    function summary(shift, now = Date.now()) {
+      if (!shift) return { cs: 0, hds: 0, rest: 0, csIn: null, csOut: null };
+      if (shift.workEnd && shift.editedSummary) return shift.editedSummary;
+      return rawSummaryFromSessions(shift, now);
     }
 
-    function durations(shift, now = Date.now()) {
-      if (!shift) return { gross: 0, cs: 0, hds: 0, rest: 0 };
-      const end = shift.workEnd ? toMs(shift.workEnd) : now;
-      const gross = elapsed(toMs(shift.workStart), end);
-      const canUseEdited = shift.workEnd && shift.editedDurations &&
-        Number.isFinite(shift.editedDurations.hds) && Number.isFinite(shift.editedDurations.rest);
-      const hds = canUseEdited ? shift.editedDurations.hds : sumActivity(shift, 'hds', end);
-      const rest = canUseEdited ? shift.editedDurations.rest : sumActivity(shift, 'rest', end);
-      return {
-        gross,
-        cs: Math.max(0, gross - hds - rest),
-        hds: Math.max(0, hds),
-        rest: Math.max(0, rest)
-      };
-    }
-
-    function durationText(ms, withSeconds = true) {
-      const total = Math.floor(Math.max(0, ms) / 1000);
-      const h = Math.floor(total / 3600);
-      const m = Math.floor((total % 3600) / 60);
-      const s = total % 60;
-      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}${withSeconds ? ':' + String(s).padStart(2,'0') : ''}`;
+    function durationText(ms) {
+      const totalMinutes = Math.floor(Math.max(0, ms) / 60000);
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
     }
 
     function parseDurationInput(text) {
@@ -678,7 +788,7 @@
       return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;
     }
 
-    function isoFromBaseKeyAndTime(baseKey, text, allowExtended) {
+    function isoFromBaseKeyAndTime(baseKey, text, allowExtended = true) {
       const parsed = parseClockInput(text, allowExtended ? 71 : 23);
       if (!parsed) return null;
       const days = allowExtended ? Math.floor(parsed.h / 24) : 0;
@@ -698,24 +808,26 @@
       toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
     }
 
-    function clockAction() {
+    function clockIn(type) {
+      if (!['cs','hds'].includes(type) || activeShift()) return;
+      const next = clone(data);
+      const now = nowIso();
+      next.shifts.unshift({
+        id: randomId(),
+        workStart: now,
+        workEnd: null,
+        activitySessions: [{ type, start: now, end: null }]
+      });
+      if (!save(next)) return;
+      render();
+      showToast(type === 'cs' ? 'CSで出勤しました' : 'HDSで出勤しました');
+    }
+
+    function clockOut() {
       const next = clone(data);
       const shift = next.shifts.find(s => s.workEnd === null) || null;
+      if (!shift) return;
       const now = nowIso();
-
-      if (!shift) {
-        next.shifts.unshift({
-          id: randomId(),
-          workStart: now,
-          workEnd: null,
-          activitySessions: [{ type: 'cs', start: now, end: null }]
-        });
-        if (!save(next)) return;
-        render();
-        showToast('出勤しました');
-        return;
-      }
-
       const open = openActivity(shift);
       if (open) open.end = now;
       shift.workEnd = now;
@@ -736,7 +848,7 @@
       shift.activitySessions.push({ type, start: now, end: null });
       if (!save(next)) return;
       render();
-      showToast({ cs:'CSに切り替えました', hds:'HDSに切り替えました', rest:'休憩を開始しました' }[type]);
+      showToast({ cs:'CSに切り替えました', hds:'HDSに切り替えました', rest:'RESTに切り替えました' }[type]);
     }
 
     function renderMain() {
@@ -745,9 +857,8 @@
       document.body.dataset.state = state;
 
       $('status-text').textContent = { idle:'OFF DUTY', cs:'CS WORKING', hds:'HDS WORKING', rest:'RESTING' }[state] || 'OFF DUTY';
-      const action = $('clock-action');
-      action.textContent = shift ? '退勤' : '出勤';
-      action.classList.toggle('clock-in', !shift);
+      $('clock-in-options').hidden = Boolean(shift);
+      $('clock-out').hidden = !shift;
       $('activity-area').hidden = !shift;
       $('shift-details').hidden = !shift;
 
@@ -763,16 +874,17 @@
 
     function tick() {
       const now = new Date();
-      const parts = fmt.timeHMS.format(now).split(':');
       $('date-live').textContent = fmt.date.format(now);
-      $('clock-live').innerHTML = `${parts[0]}:${parts[1]}<span class="sec">:${parts[2]}</span>`;
+      $('clock-live').textContent = fmt.timeHM.format(now);
 
       const shift = activeShift();
       if (shift) {
-        const d = durations(shift, now.getTime());
-        $('metric-cs').textContent = durationText(d.cs);
-        $('metric-hds').textContent = durationText(d.hds);
-        $('metric-rest').textContent = durationText(d.rest);
+        const s = summary(shift, now.getTime());
+        $('metric-cs').textContent = durationText(s.cs);
+        $('metric-hds').textContent = durationText(s.hds);
+        $('metric-rest').textContent = durationText(s.rest);
+        $('stamp-cs-in').textContent = s.csIn ? extendedTimeText(s.csIn, shift.workStart) : '--:--';
+        $('stamp-cs-out').textContent = s.csOut ? extendedTimeText(s.csOut, shift.workStart) : '--:--';
       }
     }
 
@@ -794,7 +906,7 @@
       const table = document.createElement('table');
       const thead = document.createElement('thead');
       const hr = document.createElement('tr');
-      ['日付','IN','OUT','CS','HDS','REST',''].forEach(name => {
+      ['日付','CS IN','CS OUT','CS','HDS','REST',''].forEach(name => {
         const th = document.createElement('th'); th.textContent = name; hr.append(th);
       });
       thead.append(hr); table.append(thead);
@@ -810,18 +922,18 @@
           tr.setAttribute('role','button');
           tr.setAttribute('aria-label','履歴を編集');
         }
-        const d = durations(shift, Date.now());
+        const s = summary(shift, Date.now());
         const values = [
           fmt.dayCompact.format(new Date(shift.workStart)),
-          timeText(shift.workStart),
-          ongoing ? '勤務中' : extendedTimeText(shift.workEnd, shift.workStart),
-          durationText(d.cs, false),
-          durationText(d.hds, false),
-          durationText(d.rest, false)
+          s.csIn ? extendedTimeText(s.csIn, shift.workStart) : '--:--',
+          s.csOut ? extendedTimeText(s.csOut, shift.workStart) : '--:--',
+          durationText(s.cs),
+          durationText(s.hds),
+          durationText(s.rest)
         ];
         values.forEach((value,index) => {
           const td = document.createElement('td'); td.textContent = value;
-          if (ongoing && index === 2) td.className = 'ongoing';
+          if (ongoing && index === 2 && currentState() === 'cs') td.className = 'ongoing';
           tr.append(td);
         });
 
@@ -852,16 +964,16 @@
       const shift = data.shifts.find(s => s.id === id && s.workEnd !== null);
       if (!shift) return;
       editingId = id;
-      const d = durations(shift);
+      const s = summary(shift);
       $('edit-date').textContent = fmt.date.format(new Date(shift.workStart));
-      $('edit-in').value = timeText(shift.workStart);
-      $('edit-out').value = extendedTimeText(shift.workEnd, shift.workStart);
-      $('edit-hds').value = durationText(d.hds, false);
-      $('edit-rest').value = durationText(d.rest, false);
-      updateCsPreview();
+      $('edit-cs-in').value = s.csIn ? extendedTimeText(s.csIn, shift.workStart) : '';
+      $('edit-cs-out').value = s.csOut ? extendedTimeText(s.csOut, shift.workStart) : '';
+      $('edit-cs-total').value = durationText(s.cs);
+      $('edit-hds').value = durationText(s.hds);
+      $('edit-rest').value = durationText(s.rest);
       $('edit-backdrop').hidden = false;
       document.body.style.overflow = 'hidden';
-      setTimeout(() => $('edit-in').focus(), 50);
+      setTimeout(() => $('edit-cs-in').focus(), 50);
     }
 
     function closeEdit() {
@@ -870,56 +982,44 @@
       document.body.style.overflow = '';
     }
 
-    function updateCsPreview() {
-      if (!editingId) return;
-      const shift = data.shifts.find(s => s.id === editingId);
-      if (!shift) return;
-      const baseKey = ymdKey(shift.workStart);
-      const startIso = isoFromBaseKeyAndTime(baseKey, $('edit-in').value, false);
-      const endIso = isoFromBaseKeyAndTime(baseKey, $('edit-out').value, true);
-      const hds = parseDurationInput($('edit-hds').value);
-      const rest = parseDurationInput($('edit-rest').value);
-      if (!startIso || !endIso || hds === null || rest === null || toMs(endIso) < toMs(startIso)) {
-        $('edit-cs-preview').textContent = '--:--';
-        return;
-      }
-      const gross = toMs(endIso) - toMs(startIso);
-      if (hds + rest > gross) {
-        $('edit-cs-preview').textContent = '--:--';
-        return;
-      }
-      $('edit-cs-preview').textContent = durationText(gross - hds - rest, false);
-    }
-
     function saveEdit() {
       if (!editingId) return;
       const original = data.shifts.find(s => s.id === editingId && s.workEnd !== null);
       if (!original) return;
       const baseKey = ymdKey(original.workStart);
-      const startIso = isoFromBaseKeyAndTime(baseKey, $('edit-in').value, false);
-      const endIso = isoFromBaseKeyAndTime(baseKey, $('edit-out').value, true);
+      const csInText = $('edit-cs-in').value.trim();
+      const csOutText = $('edit-cs-out').value.trim();
+      const cs = parseDurationInput($('edit-cs-total').value);
       const hds = parseDurationInput($('edit-hds').value);
       const rest = parseDurationInput($('edit-rest').value);
 
-      if (!startIso || !endIso || hds === null || rest === null) {
-        showToast('HH:MM形式で入力してください');
+      if (cs === null || hds === null || rest === null) {
+        showToast('時間はHH:MM形式で入力してください');
         return;
       }
-      if (toMs(endIso) < toMs(startIso)) {
-        showToast('OUTはINより後にしてください');
+      if ((csInText && !csOutText) || (!csInText && csOutText)) {
+        showToast('CS INとCS OUTは両方入力してください');
         return;
       }
-      const gross = toMs(endIso) - toMs(startIso);
-      if (hds + rest > gross) {
-        showToast('HDS＋RESTが勤務時間を超えています');
-        return;
+
+      let csIn = null;
+      let csOut = null;
+      if (csInText && csOutText) {
+        csIn = isoFromBaseKeyAndTime(baseKey, csInText, true);
+        csOut = isoFromBaseKeyAndTime(baseKey, csOutText, true);
+        if (!csIn || !csOut) {
+          showToast('CS時刻はHH:MM形式で入力してください');
+          return;
+        }
+        if (toMs(csOut) < toMs(csIn)) {
+          showToast('CS OUTはCS INより後にしてください');
+          return;
+        }
       }
 
       const next = clone(data);
       const shift = next.shifts.find(s => s.id === editingId);
-      shift.workStart = startIso;
-      shift.workEnd = endIso;
-      shift.editedDurations = { hds, rest };
+      shift.editedSummary = { csIn, csOut, cs, hds, rest };
       if (!save(next)) return;
       closeEdit();
       render();
@@ -927,9 +1027,7 @@
     }
 
     function deleteShift(id) {
-      if (!id) return;
-      const exists = data.shifts.some(s => s.id === id);
-      if (!exists) return;
+      if (!id || !data.shifts.some(s => s.id === id)) return;
       const next = clone(data);
       next.shifts = next.shifts.filter(s => s.id !== id);
       if (!save(next)) return;
@@ -948,13 +1046,14 @@
       if (history) renderHistory();
     }
 
-    $('clock-action').addEventListener('click', clockAction);
+    $('clock-in-cs').addEventListener('click', () => clockIn('cs'));
+    $('clock-in-hds').addEventListener('click', () => clockIn('hds'));
+    $('clock-out').addEventListener('click', clockOut);
     document.querySelectorAll('[data-activity]').forEach(btn => btn.addEventListener('click', () => changeActivity(btn.dataset.activity)));
     $('tab-clock').addEventListener('click', () => selectTab('clock'));
     $('tab-history').addEventListener('click', () => selectTab('history'));
     $('edit-close').addEventListener('click', closeEdit);
     $('edit-save').addEventListener('click', saveEdit);
-    ['edit-in','edit-out','edit-hds','edit-rest'].forEach(id => $(id).addEventListener('input', updateCsPreview));
     $('edit-backdrop').addEventListener('click', e => { if (e.target === $('edit-backdrop')) closeEdit(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('edit-backdrop').hidden) closeEdit(); });
 
@@ -962,7 +1061,7 @@
       if (event.key !== KEY || !event.newValue) return;
       try {
         const incoming = JSON.parse(event.newValue);
-        if (incoming?.version === 3 && Array.isArray(incoming.shifts) && incoming.shifts.every(validShift)) {
+        if (incoming?.version === 4 && Array.isArray(incoming.shifts) && incoming.shifts.every(validShift)) {
           data = incoming;
           render();
         }
