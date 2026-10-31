@@ -42,9 +42,9 @@
     body[data-state="hds"] { background: linear-gradient(180deg, var(--deep) 0%, var(--aqua) 100%); }
     body[data-state="rest"] { background: linear-gradient(180deg, var(--sand) 0%, var(--shell) 100%); }
 
-    button, input { font: inherit; }
+    button, input, textarea { font: inherit; }
     button { -webkit-tap-highlight-color: transparent; }
-    button:focus-visible, input:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
     [hidden] { display: none !important; }
 
     .app {
@@ -223,8 +223,54 @@
     }
 
     .history-head { margin: 4vh 4px 13px; }
+    .history-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .history-title { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: -.04em; }
     .history-note { margin-top: 5px; color: var(--muted); font-size: 10px; font-weight: 650; }
+    .detail-open {
+      border: 0; border-radius: 999px; padding: 9px 13px; background: var(--deep); color: var(--paper);
+      font-size: 10px; font-weight: 850; letter-spacing: .04em; cursor: pointer; white-space: nowrap;
+    }
+    .detail-head { margin: 4vh 4px 13px; }
+    .detail-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .detail-back {
+      border: 0; border-radius: 999px; padding: 9px 13px; background: rgba(255,253,248,.78); color: var(--ink);
+      font-size: 10px; font-weight: 850; cursor: pointer; box-shadow: 0 8px 22px rgba(23,74,74,.07);
+    }
+    .detail-picker {
+      margin-top: 14px; display: grid; grid-template-columns: 36px 1fr 36px; gap: 8px; align-items: center;
+    }
+    .date-step {
+      height: 38px; border: 0; border-radius: 13px; background: rgba(255,253,248,.82); color: var(--ink);
+      font-size: 18px; font-weight: 800; cursor: pointer;
+    }
+    .detail-date-input {
+      width: 100%; min-width: 0; height: 42px; border: 1px solid rgba(255,255,255,.52); border-radius: 14px;
+      padding: 0 11px; background: rgba(255,253,248,.86); color: var(--ink); font-size: 14px; font-weight: 780;
+      text-align: center; color-scheme: light;
+    }
+    .detail-shift {
+      margin-bottom: 12px; padding: 16px 15px; border: 1px solid rgba(255,255,255,.50); border-radius: 22px;
+      background: rgba(255,253,248,.82); box-shadow: var(--shadow); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .detail-shift:last-child { margin-bottom: 0; }
+    .detail-shift-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+    .detail-shift-title { font-size: 12px; font-weight: 850; }
+    .detail-shift-range { color: var(--muted); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .timeline { display: grid; gap: 0; }
+    .timeline-row {
+      display: grid; grid-template-columns: 58px 12px 1fr; gap: 8px; align-items: center; min-height: 34px;
+      border-top: 1px solid var(--line);
+    }
+    .timeline-row:first-child { border-top: 0; }
+    .timeline-time { color: var(--ink); font-size: 11px; font-weight: 820; font-variant-numeric: tabular-nums; }
+    .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sky); justify-self: center; }
+    .timeline-dot.hds { background: var(--deep); }
+    .timeline-dot.rest { background: var(--sand); border: 1px solid rgba(23,74,74,.12); }
+    .timeline-dot.out { background: var(--teal); }
+    .timeline-label { font-size: 11px; font-weight: 760; }
+    .detail-note-box { margin-top: 12px; padding: 12px 13px; border-radius: 15px; background: rgba(233,210,185,.30); }
+    .detail-note-label { color: var(--muted); font-size: 8px; font-weight: 850; letter-spacing: .08em; }
+    .detail-note-text { margin-top: 5px; white-space: pre-wrap; color: var(--ink); font-size: 11px; line-height: 1.6; }
     .table-wrap {
       overflow: hidden;
       border: 1px solid rgba(255,255,255,.50);
@@ -349,7 +395,7 @@
     .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 19px; }
     .field { min-width: 0; }
     .field label { display: block; margin: 0 0 6px 2px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: .06em; }
-    .field input {
+    .field input, .field textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 15px;
@@ -361,6 +407,15 @@
       font-variant-numeric: tabular-nums;
       text-align: center;
     }
+    .field textarea { min-height: 92px; resize: vertical; text-align: left; font-size: 13px; line-height: 1.6; font-weight: 650; }
+    .field.full { grid-column: 1 / -1; }
+    .memo-textarea {
+      width: 100%; min-height: 150px; margin-top: 16px; border: 1px solid var(--line); border-radius: 18px;
+      padding: 14px; background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.7; resize: vertical;
+    }
+    .memo-hint { margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .memo-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 9px; margin-top: 14px; }
+    .modal-btn.secondary { background: var(--foam); color: var(--ink); }
     .field-hint { margin-top: 5px; color: var(--muted); font-size: 8.5px; line-height: 1.4; }
     .cs-preview {
       display: flex;
@@ -457,10 +512,28 @@
 
     <section id="panel-history" hidden>
       <div class="history-head">
-        <h1 class="history-title">履歴</h1>
+        <div class="history-head-row">
+          <h1 class="history-title">履歴</h1>
+          <button class="detail-open" id="detail-open" type="button">詳細</button>
+        </div>
         <div class="history-note">行をタップで編集、右端の×で削除</div>
       </div>
       <div id="history-container"></div>
+    </section>
+
+    <section id="panel-detail" hidden>
+      <div class="detail-head">
+        <div class="detail-top">
+          <button class="detail-back" id="detail-back" type="button">← 履歴</button>
+          <h1 class="history-title">詳細</h1>
+        </div>
+        <div class="detail-picker">
+          <button class="date-step" id="detail-prev" type="button" aria-label="前の日">‹</button>
+          <input class="detail-date-input" id="detail-date" type="date" aria-label="表示する日付">
+          <button class="date-step" id="detail-next" type="button" aria-label="次の日">›</button>
+        </div>
+      </div>
+      <div id="detail-container"></div>
     </section>
   </main>
 
@@ -502,10 +575,32 @@
           <label for="edit-rest">REST TOTAL</label>
           <input id="edit-rest" inputmode="numeric" autocomplete="off" placeholder="01:00">
         </div>
+        <div class="field full">
+          <label for="edit-note">業務内容・備考</label>
+          <textarea id="edit-note" autocomplete="off" placeholder="その日の業務内容など"></textarea>
+        </div>
       </div>
 
       <div class="modal-actions">
         <button class="modal-btn save" id="edit-save" type="button">保存</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="memo-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="memo-title">
+      <div class="modal-head">
+        <div>
+          <h2 class="modal-title" id="memo-title">本日の業務内容</h2>
+          <div class="modal-date" id="memo-date">----</div>
+        </div>
+        <button class="modal-close" id="memo-close" type="button" aria-label="閉じる">×</button>
+      </div>
+      <textarea class="memo-textarea" id="memo-text" autocomplete="off" placeholder="今日やったこと、引き継ぎ、気づいたことなど"></textarea>
+      <div class="memo-hint">退勤時刻はすでに保存されています。備考は空欄でも大丈夫です。</div>
+      <div class="memo-actions">
+        <button class="modal-btn secondary" id="memo-skip" type="button">あとで</button>
+        <button class="modal-btn save" id="memo-save" type="button">保存</button>
       </div>
     </section>
   </div>
@@ -522,9 +617,11 @@
     const JST_OFFSET = '+09:00';
     const $ = id => document.getElementById(id);
 
-    let data = { version: 4, shifts: [] };
+    let data = { version: 5, shifts: [] };
     let activeTab = 'clock';
     let editingId = null;
+    let memoShiftId = null;
+    let detailDateKey = null;
     let toastTimer;
 
     const fmt = {
@@ -587,7 +684,8 @@
       return s && typeof s.id === 'string' && validIso(s.workStart) &&
         (s.workEnd === null || validIso(s.workEnd)) &&
         (s.workEnd === null || toMs(s.workEnd) >= toMs(s.workStart)) &&
-        Array.isArray(s.activitySessions) && s.activitySessions.every(validActivity) && validEditedSummary(s.editedSummary);
+        Array.isArray(s.activitySessions) && s.activitySessions.every(validActivity) &&
+        (s.note === undefined || typeof s.note === 'string') && validEditedSummary(s.editedSummary);
     }
 
     function save(next) {
@@ -666,14 +764,15 @@
       };
     }
 
-    function migrateToV4(parsed) {
+    function migrateToV5(parsed) {
       if (!parsed || !Array.isArray(parsed.shifts)) return null;
       const shifts = parsed.shifts.filter(s => s && validIso(s.workStart)).map(s => {
         const base = {
           id: typeof s.id === 'string' ? s.id : randomId(),
           workStart: s.workStart,
           workEnd: validIso(s.workEnd) ? s.workEnd : null,
-          activitySessions: Array.isArray(s.activitySessions) ? s.activitySessions : []
+          activitySessions: Array.isArray(s.activitySessions) ? s.activitySessions : [],
+          note: typeof s.note === 'string' ? s.note : ''
         };
         base.activitySessions = materializeSessions(base);
         if (base.workEnd && s.editedDurations && Number.isFinite(s.editedDurations.hds) && Number.isFinite(s.editedDurations.rest)) {
@@ -691,7 +790,7 @@
         }
         return base;
       });
-      return { version: 4, shifts };
+      return { version: 5, shifts };
     }
 
     function migrateV2(parsed) {
@@ -714,7 +813,7 @@
           };
         })
       };
-      return migrateToV4(temp);
+      return migrateToV5(temp);
     }
 
     function load() {
@@ -722,12 +821,12 @@
         const current = localStorage.getItem(KEY);
         if (current) {
           const parsed = JSON.parse(current);
-          if (parsed?.version === 4 && Array.isArray(parsed.shifts) && parsed.shifts.every(validShift)) {
+          if (parsed?.version === 5 && Array.isArray(parsed.shifts) && parsed.shifts.every(validShift)) {
             data = parsed;
             return;
           }
-          if ((parsed?.version === 3 || parsed?.version === undefined) && Array.isArray(parsed.shifts)) {
-            const migrated = migrateToV4(parsed);
+          if ((parsed?.version === 4 || parsed?.version === 3 || parsed?.version === undefined) && Array.isArray(parsed.shifts)) {
+            const migrated = migrateToV5(parsed);
             if (migrated) { save(migrated); return; }
           }
         }
@@ -737,7 +836,7 @@
           if (migrated) save(migrated);
         }
       } catch {
-        data = { version: 4, shifts: [] };
+        data = { version: 5, shifts: [] };
       }
     }
 
@@ -816,7 +915,8 @@
         id: randomId(),
         workStart: now,
         workEnd: null,
-        activitySessions: [{ type, start: now, end: null }]
+        activitySessions: [{ type, start: now, end: null }],
+        note: ''
       });
       if (!save(next)) return;
       render();
@@ -831,9 +931,40 @@
       const open = openActivity(shift);
       if (open) open.end = now;
       shift.workEnd = now;
+      if (typeof shift.note !== 'string') shift.note = '';
       if (!save(next)) return;
       render();
-      showToast('退勤しました');
+      openMemo(shift.id);
+      showToast('退勤を記録しました');
+    }
+
+    function openMemo(id) {
+      const shift = data.shifts.find(s => s.id === id && s.workEnd !== null);
+      if (!shift) return;
+      memoShiftId = id;
+      $('memo-date').textContent = fmt.date.format(new Date(shift.workStart));
+      $('memo-text').value = typeof shift.note === 'string' ? shift.note : '';
+      $('memo-backdrop').hidden = false;
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => $('memo-text').focus(), 60);
+    }
+
+    function closeMemo() {
+      memoShiftId = null;
+      $('memo-backdrop').hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function saveMemo() {
+      if (!memoShiftId) return closeMemo();
+      const next = clone(data);
+      const shift = next.shifts.find(s => s.id === memoShiftId);
+      if (!shift) return closeMemo();
+      shift.note = $('memo-text').value.trim();
+      if (!save(next)) return;
+      closeMemo();
+      if (activeTab === 'detail') renderDetail();
+      showToast('備考を保存しました');
     }
 
     function changeActivity(type) {
@@ -960,6 +1091,106 @@
       table.append(tbody); wrap.append(table); host.append(wrap);
     }
 
+    function shiftEvents(shift) {
+      const sessions = [...(shift.activitySessions || [])].filter(validActivity).sort((a,b) => toMs(a.start) - toMs(b.start));
+      const events = sessions.map((session, index) => ({
+        time: session.start,
+        type: session.type,
+        label: index === 0 ? `${session.type.toUpperCase()}出勤` : `${session.type.toUpperCase()}へ切替`
+      }));
+      if (shift.workEnd) events.push({ time: shift.workEnd, type: 'out', label: '退勤' });
+      return events;
+    }
+
+    function availableDateKeys() {
+      return [...new Set(data.shifts.map(s => ymdKey(s.workStart)))].sort();
+    }
+
+    function setDetailDate(key) {
+      detailDateKey = key;
+      $('detail-date').value = key || '';
+      renderDetail();
+    }
+
+    function stepDetailDate(days) {
+      const base = detailDateKey || ymdKey(new Date());
+      setDetailDate(addDaysToKey(base, days));
+    }
+
+    function renderDetail() {
+      const host = $('detail-container');
+      host.replaceChildren();
+      const keys = availableDateKeys();
+      if (!detailDateKey) detailDateKey = keys.at(-1) || ymdKey(new Date());
+      $('detail-date').value = detailDateKey;
+      if (keys.length) {
+        $('detail-date').min = keys[0];
+        $('detail-date').max = keys[keys.length - 1];
+      } else {
+        $('detail-date').removeAttribute('min');
+        $('detail-date').removeAttribute('max');
+      }
+
+      const shifts = data.shifts
+        .filter(s => ymdKey(s.workStart) === detailDateKey)
+        .sort((a,b) => toMs(a.workStart) - toMs(b.workStart));
+
+      if (!shifts.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'この日の記録はありません';
+        host.append(empty);
+        return;
+      }
+
+      shifts.forEach((shift, index) => {
+        const card = document.createElement('section');
+        card.className = 'detail-shift';
+        const head = document.createElement('div');
+        head.className = 'detail-shift-head';
+        const title = document.createElement('div');
+        title.className = 'detail-shift-title';
+        title.textContent = shifts.length > 1 ? `勤務 ${index + 1}` : '勤務ログ';
+        const range = document.createElement('div');
+        range.className = 'detail-shift-range';
+        range.textContent = `${extendedTimeText(shift.workStart, shift.workStart)} → ${shift.workEnd ? extendedTimeText(shift.workEnd, shift.workStart) : '勤務中'}`;
+        head.append(title, range);
+        card.append(head);
+
+        const timeline = document.createElement('div');
+        timeline.className = 'timeline';
+        shiftEvents(shift).forEach(event => {
+          const row = document.createElement('div');
+          row.className = 'timeline-row';
+          const time = document.createElement('div');
+          time.className = 'timeline-time';
+          time.textContent = extendedTimeText(event.time, shift.workStart);
+          const dot = document.createElement('span');
+          dot.className = `timeline-dot ${event.type}`;
+          const label = document.createElement('div');
+          label.className = 'timeline-label';
+          label.textContent = event.label;
+          row.append(time, dot, label);
+          timeline.append(row);
+        });
+        card.append(timeline);
+
+        if (typeof shift.note === 'string' && shift.note.trim()) {
+          const note = document.createElement('div');
+          note.className = 'detail-note-box';
+          const lab = document.createElement('div');
+          lab.className = 'detail-note-label';
+          lab.textContent = '業務内容・備考';
+          const body = document.createElement('div');
+          body.className = 'detail-note-text';
+          body.textContent = shift.note.trim();
+          note.append(lab, body);
+          card.append(note);
+        }
+        host.append(card);
+      });
+    }
+
     function openEdit(id) {
       const shift = data.shifts.find(s => s.id === id && s.workEnd !== null);
       if (!shift) return;
@@ -971,6 +1202,7 @@
       $('edit-cs-total').value = durationText(s.cs);
       $('edit-hds').value = durationText(s.hds);
       $('edit-rest').value = durationText(s.rest);
+      $('edit-note').value = typeof shift.note === 'string' ? shift.note : '';
       $('edit-backdrop').hidden = false;
       document.body.style.overflow = 'hidden';
       setTimeout(() => $('edit-cs-in').focus(), 50);
@@ -1020,6 +1252,7 @@
       const next = clone(data);
       const shift = next.shifts.find(s => s.id === editingId);
       shift.editedSummary = { csIn, csOut, cs, hds, rest };
+      shift.note = $('edit-note').value.trim();
       if (!save(next)) return;
       closeEdit();
       render();
@@ -1038,12 +1271,16 @@
 
     function selectTab(tab) {
       activeTab = tab;
+      const clock = tab === 'clock';
       const history = tab === 'history';
-      $('panel-clock').hidden = history;
+      const detail = tab === 'detail';
+      $('panel-clock').hidden = !clock;
       $('panel-history').hidden = !history;
-      $('tab-clock').setAttribute('aria-selected', String(!history));
-      $('tab-history').setAttribute('aria-selected', String(history));
+      $('panel-detail').hidden = !detail;
+      $('tab-clock').setAttribute('aria-selected', String(clock));
+      $('tab-history').setAttribute('aria-selected', String(history || detail));
       if (history) renderHistory();
+      if (detail) renderDetail();
     }
 
     $('clock-in-cs').addEventListener('click', () => clockIn('cs'));
@@ -1052,16 +1289,33 @@
     document.querySelectorAll('[data-activity]').forEach(btn => btn.addEventListener('click', () => changeActivity(btn.dataset.activity)));
     $('tab-clock').addEventListener('click', () => selectTab('clock'));
     $('tab-history').addEventListener('click', () => selectTab('history'));
+    $('detail-open').addEventListener('click', () => {
+      const keys = availableDateKeys();
+      detailDateKey = keys.at(-1) || ymdKey(new Date());
+      selectTab('detail');
+    });
+    $('detail-back').addEventListener('click', () => selectTab('history'));
+    $('detail-date').addEventListener('change', e => { if (e.target.value) setDetailDate(e.target.value); });
+    $('detail-prev').addEventListener('click', () => stepDetailDate(-1));
+    $('detail-next').addEventListener('click', () => stepDetailDate(1));
     $('edit-close').addEventListener('click', closeEdit);
     $('edit-save').addEventListener('click', saveEdit);
+    $('memo-close').addEventListener('click', closeMemo);
+    $('memo-skip').addEventListener('click', closeMemo);
+    $('memo-save').addEventListener('click', saveMemo);
     $('edit-backdrop').addEventListener('click', e => { if (e.target === $('edit-backdrop')) closeEdit(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('edit-backdrop').hidden) closeEdit(); });
+    $('memo-backdrop').addEventListener('click', e => { if (e.target === $('memo-backdrop')) closeMemo(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!$('memo-backdrop').hidden) closeMemo();
+      else if (!$('edit-backdrop').hidden) closeEdit();
+    });
 
     window.addEventListener('storage', event => {
       if (event.key !== KEY || !event.newValue) return;
       try {
         const incoming = JSON.parse(event.newValue);
-        if (incoming?.version === 4 && Array.isArray(incoming.shifts) && incoming.shifts.every(validShift)) {
+        if (incoming?.version === 5 && Array.isArray(incoming.shifts) && incoming.shifts.every(validShift)) {
           data = incoming;
           render();
         }
@@ -1071,6 +1325,7 @@
     function render() {
       renderMain();
       if (activeTab === 'history') renderHistory();
+      if (activeTab === 'detail') renderDetail();
     }
 
     load();
@@ -1079,6 +1334,7 @@
       if (!document.hidden) {
         tick();
         if (activeTab === 'history' && activeShift()) renderHistory();
+        if (activeTab === 'detail' && activeShift()) renderDetail();
       }
     }, 1000);
 
